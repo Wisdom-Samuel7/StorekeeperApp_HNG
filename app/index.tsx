@@ -1,89 +1,76 @@
-import React, { useEffect, useState } from "react";
-import { View, FlatList, Image, Alert } from "react-native";
-import { Button, Card, Text } from "react-native-paper";
-import { useRouter } from "expo-router";
-import { getProducts, deleteProduct, initDB } from "../database";
+import React, { useState, useCallback } from "react";
+import { View, FlatList, Text, TouchableOpacity, Alert, StyleSheet } from "react-native";
+import { Button } from "react-native-paper";
+import { useRouter, useFocusEffect } from "expo-router";
+import { initDB, getProducts, deleteProduct } from "../database";
 
 export default function HomeScreen() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState([]);
   const router = useRouter();
 
-  // 🔄 Load products from DB
+  // 🔁 Load all products from SQLite
   const loadProducts = async () => {
-    await initDB();
-    const data = await getProducts();
-    setProducts(data);
+    try {
+      await initDB();
+      const data = await getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error("Failed to load products:", error);
+    }
   };
 
-  useEffect(() => {
-    const unsubscribe = router.addListener?.("focus", loadProducts);
-    loadProducts();
-    return unsubscribe;
-  }, []);
+  // 🔥 Auto reload when screen is focused (after add/edit/delete)
+  useFocusEffect(
+    useCallback(() => {
+      loadProducts();
+    }, [])
+  );
 
   // 🗑️ Handle delete
   const handleDelete = async (id: number) => {
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this product?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await deleteProduct(id);
-            await loadProducts();
-            Alert.alert("Deleted!", "Product has been removed.");
-          },
+    Alert.alert("Confirm Delete", "Are you sure you want to delete this product?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteProduct(id);
+          loadProducts();
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  // 🧱 Render product card
-  const renderItem = ({ item }) => (
-    <Card style={{ marginBottom: 15, padding: 10 }}>
-      {item.image ? (
-        <Image
-          source={{ uri: item.image }}
-          style={{ width: "100%", height: 150, borderRadius: 8 }}
-          resizeMode="cover"
-        />
-      ) : null}
-      <Text style={{ fontSize: 18, fontWeight: "bold", marginTop: 10 }}>
-        {item.name}
-      </Text>
-      <Text>Qty: {item.quantity}</Text>
-      <Text>₦{item.price}</Text>
+  const renderItem = ({ item }: any) => (
+    <View style={styles.card}>
+      <View>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.details}>Qty: {item.quantity}</Text>
+        <Text style={styles.details}>Price: ₦{item.price}</Text>
+      </View>
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
+      <View style={styles.actions}>
         <Button
-          mode="contained-tonal"
+          mode="contained"
           onPress={() => router.push(`/edit?id=${item.id}`)}
+          style={styles.editBtn}
         >
           Edit
         </Button>
         <Button
           mode="contained"
-          buttonColor="red"
-          textColor="white"
           onPress={() => handleDelete(item.id)}
+          style={styles.deleteBtn}
         >
           Delete
         </Button>
       </View>
-    </Card>
+    </View>
   );
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <Button
-        icon="plus"
-        mode="contained"
-        style={{ marginBottom: 20 }}
-        onPress={() => router.push("/add")}
-      >
+    <View style={styles.container}>
+      <Button mode="contained" onPress={() => router.push("/add")} style={styles.addBtn}>
         Add Product
       </Button>
 
@@ -96,3 +83,43 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#f8f8f8",
+  },
+  addBtn: {
+    marginBottom: 20,
+    backgroundColor: "#007bff",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 12,
+    elevation: 3,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  details: {
+    fontSize: 14,
+    color: "#555",
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  editBtn: {
+    backgroundColor: "#28a745",
+  },
+  deleteBtn: {
+    backgroundColor: "#dc3545",
+  },
+});
