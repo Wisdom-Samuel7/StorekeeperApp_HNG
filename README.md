@@ -1,6 +1,4 @@
-Sure — here’s a single block version of your README (no clickable markdown links, just plain URLs so you can copy it directly):
 
----
 
 # 🏪 Storekeeper App
 
